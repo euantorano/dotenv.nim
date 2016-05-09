@@ -3,9 +3,6 @@
 
 import hashes, strutils, lexbase, streams
 
-const COMMENT_CHAR = '#'
-const ASSIGN_CHAR = '='
-
 type
   EnvEventKind* = enum ## enumeration of all events that may occur when parsing
     envEof,             ## end of file reached

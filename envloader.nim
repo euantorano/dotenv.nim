@@ -9,12 +9,13 @@ type
     ## Loader responsible for loading variables out of a file into a map of key => val
     filePath: string
   DotEnvReadError* = object of Exception
+  DotEnvParseError* = object of Exception
 
 proc initEnvLoader*(path: string): EnvLoader =
   ## Create a new `EnvLoader` with the given path.
   result = EnvLoader(filePath: path)
 
-iterator load*(el: EnvLoader): EnvVar {.tags: [ReadDirEffect, ReadIOEffect, RootEffect], raises: [OSError, Exception].} =
+iterator load*(el: EnvLoader): EnvVar {.tags: [ReadDirEffect, ReadIOEffect, RootEffect], raises: [DotEnvReadError, DotEnvParseError, Exception].} =
   let f = newFileStream(el.filePath, fmRead)
 
   if isNil(f):
@@ -30,6 +31,5 @@ iterator load*(el: EnvLoader): EnvVar {.tags: [ReadDirEffect, ReadIOEffect, Root
     of envKeyValuePair:
       yield (name: e.key, value: e.value)
     of envError:
-      # TODO: Exception!
-      echo(e.msg)
+      raise newException(DotEnvParseError, e.msg)
   close(parser)

@@ -258,6 +258,12 @@ proc getKeyValPair(c: var EnvParser, kind: EnvEventKind): EnvEvent =
     result.key = c.tok.literal
     result.value = ""
     rawGetTok(c, c.tok)
+
+    if c.tok.kind == EnvTokenKind.Symbol and result.key == "export":
+      # skip `export`
+      result.key = c.tok.literal
+      rawGetTok(c, c.tok)
+
     if c.tok.kind == EnvTokenKind.Equals:
       rawGetTok(c, c.tok)
       if c.tok.kind == EnvTokenKind.Symbol:

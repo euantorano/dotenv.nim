@@ -26,3 +26,9 @@ suite "dotenv tests":
       check false
     except DotEnvParseError:
       check true
+
+  test "test load .env file with exports":
+    loadEnvFromString(r"""
+    export exportedHello=world
+    """)
+    check getEnv("exportedHello") == "world"

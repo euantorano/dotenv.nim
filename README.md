@@ -94,5 +94,4 @@ assert getEnv("foo") == "bar"
 ## Planned features
 
 * Allow the usage of other environment variables inside variable values.
-* Allow `export` preceding variable names, allowing the sourcing of a `.env` file from a shell.
 * Add validation of variable values, specifying variables have to be integer, or boolean, or a value from a predefined set.

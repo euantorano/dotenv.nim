@@ -13,3 +13,16 @@ suite "dotenv tests":
     check getEnv("hello") == "world"
     check getEnv("foo") == "bar"
 
+  test "test load invalid .env file":
+    try:
+      loadEnvFromString(r"inv~lid=world")
+      check false
+    except DotEnvParseError:
+      check true
+
+  test "test load invalid .env file 2":
+    try:
+      loadEnvFromString(r"invalid!=world")
+      check false
+    except DotEnvParseError:
+      check true

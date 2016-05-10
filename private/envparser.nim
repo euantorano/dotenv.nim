@@ -33,10 +33,8 @@ type
     tok: Token
     filePath: string
 
-# implementation
-
 const
-  SymChars = {'a'..'z', 'A'..'Z', '0'..'9', '_', '\x80'..'\xFF', '.', '/', '\\'}
+  SymChars = {'a'..'z', 'A'..'Z', '0'..'9', '_', '.'}
 
 proc rawGetTok(c: var EnvParser, tok: var Token) {.gcsafe.}
 
@@ -269,6 +267,10 @@ proc getKeyValPair(c: var EnvParser, kind: EnvEventKind): EnvEvent =
         result.kind = EnvEventKind.Error
         result.msg = errorStr(c, "symbol expected, but found: " & c.tok.literal)
       rawGetTok(c, c.tok)
+    else:
+      reset result
+      result.kind = EnvEventKind.Error
+      result.msg = errorStr(c, "symbol expected, but found: " & c.tok.literal)
   else:
     result.kind = EnvEventKind.Error
     result.msg = errorStr(c, "symbol expected, but found: " & c.tok.literal)

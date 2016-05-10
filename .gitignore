@@ -1,3 +1,4 @@
 nimcache/
 .env
 tests/main
+tests/main.exe

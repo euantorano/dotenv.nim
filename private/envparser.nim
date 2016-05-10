@@ -1,32 +1,32 @@
-# A parser to parse simple env files.
-# Most of this is stolen from `parsecfg`, with support for sections and `:` assignment removed.
+## A parser to parse simple env files.
+## Most of this is stolen from `parsecfg`, with support for sections and `:` assignment removed.
 
 import hashes, strutils, lexbase, streams
 
 type
-  EnvEventKind* = enum ## enumeration of all events that may occur when parsing
-    envEof,             ## end of file reached
-    envKeyValuePair,    ## a ``key=value`` pair has been detected
-    envError            ## an error occurred during parsing
+  EnvEventKind* {.pure.} = enum ## enumeration of all events that may occur when parsing
+    Eof,             ## end of file reached
+    KeyValuePair,    ## a ``key=value`` pair has been detected
+    Error            ## an error occurred during parsing
 
   EnvEvent* = object of RootObj ## describes a parsing event
     case kind*: EnvEventKind    ## the kind of the event
-    of envEof: nil
-    of envKeyValuePair:
+    of EnvEventKind.Eof: nil
+    of EnvEventKind.KeyValuePair:
       key*, value*: string       ## contains the (key, value) pair if an option
                                  ## of the form ``--key: value`` or an ordinary
                                  ## ``key= value`` pair has been parsed.
                                  ## ``value==""`` if it was not specified in the
                                  ## configuration file.
-    of envError:                 ## the parser encountered an error: `msg`
+    of EnvEventKind.Error:                 ## the parser encountered an error: `msg`
       msg*: string               ## contains the error message. No exceptions
                                  ## are thrown if a parse error occurs.
 
-  TokKind = enum
-    tkInvalid, tkEof,
-    tkSymbol, tkEquals
+  EnvTokenKind {.pure.} = enum
+    Invalid, Eof,
+    Symbol, Equals
   Token = object             # a token
-    kind: TokKind            # the type of the token
+    kind: EnvTokenKind            # the type of the token
     literal: string          # the parsed (string) literal
 
   EnvParser* = object of BaseLexer ## the parser object.
@@ -46,7 +46,7 @@ proc open*(c: var EnvParser, input: Stream, filePath: string) =
   ## number information in the generated error messages.
   lexbase.open(c, input)
   c.filePath = filePath
-  c.tok.kind = tkInvalid
+  c.tok.kind = EnvTokenKind.Invalid
   c.tok.literal = ""
   rawGetTok(c, c.tok)
 
@@ -131,8 +131,8 @@ proc getEscapedChar(c: var EnvParser, tok: var Token) =
     var xi = 0
     handleDecChars(c, xi)
     if (xi <= 255): add(tok.literal, chr(xi))
-    else: tok.kind = tkInvalid
-  else: tok.kind = tkInvalid
+    else: tok.kind = EnvTokenKind.Invalid
+  else: tok.kind = EnvTokenKind.Invalid
 
 proc handleCRLF(c: var EnvParser, pos: int): int =
   case c.buf[pos]
@@ -143,7 +143,7 @@ proc handleCRLF(c: var EnvParser, pos: int): int =
 proc getString(c: var EnvParser, tok: var Token, rawMode: bool) =
   var pos = c.bufpos + 1          # skip "
   var buf = c.buf                 # put `buf` in a register
-  tok.kind = tkSymbol
+  tok.kind = EnvTokenKind.Symbol
   if (buf[pos] == '"') and (buf[pos + 1] == '"'):
     # long string literal:
     inc(pos, 2)               # skip ""
@@ -161,7 +161,7 @@ proc getString(c: var EnvParser, tok: var Token, rawMode: bool) =
         buf = c.buf
         add(tok.literal, "\n")
       of lexbase.EndOfFile:
-        tok.kind = tkInvalid
+        tok.kind = EnvTokenKind.Invalid
         break
       else:
         add(tok.literal, buf[pos])
@@ -175,7 +175,7 @@ proc getString(c: var EnvParser, tok: var Token, rawMode: bool) =
         inc(pos)              # skip '"'
         break
       if ch in {'\c', '\L', lexbase.EndOfFile}:
-        tok.kind = tkInvalid
+        tok.kind = EnvTokenKind.Invalid
         break
       if (ch == '\\') and not rawMode:
         c.bufpos = pos
@@ -194,7 +194,7 @@ proc getSymbol(c: var EnvParser, tok: var Token) =
     inc(pos)
     if not (buf[pos] in SymChars): break
   c.bufpos = pos
-  tok.kind = tkSymbol
+  tok.kind = EnvTokenKind.Symbol
 
 proc skip(c: var EnvParser) =
   var pos = c.bufpos
@@ -213,12 +213,12 @@ proc skip(c: var EnvParser) =
   c.bufpos = pos
 
 proc rawGetTok(c: var EnvParser, tok: var Token) =
-  tok.kind = tkInvalid
+  tok.kind = EnvTokenKind.Invalid
   setLen(tok.literal, 0)
   skip(c)
   case c.buf[c.bufpos]
   of '=':
-    tok.kind = tkEquals
+    tok.kind = EnvTokenKind.Equals
     inc(c.bufpos)
     tok.literal = "="
   of 'r', 'R':
@@ -230,7 +230,7 @@ proc rawGetTok(c: var EnvParser, tok: var Token) =
   of '"':
     getString(c, tok, false)
   of lexbase.EndOfFile:
-    tok.kind = tkEof
+    tok.kind = EnvTokenKind.Eof
     tok.literal = "[EOF]"
   else: getSymbol(c, tok)
 
@@ -250,38 +250,38 @@ proc ignoreMsg*(c: EnvParser, e: EnvEvent): string =
   ## returns a properly formated warning message containing that
   ## an entry is ignored.
   case e.kind
-  of envKeyValuePair: result = c.warningStr("key ignored: " & e.key)
-  of envError: result = e.msg
-  of envEof: result = ""
+  of EnvEventKind.KeyValuePair: result = c.warningStr("key ignored: " & e.key)
+  of EnvEventKind.Error: result = e.msg
+  of EnvEventKind.Eof: result = ""
 
 proc getKeyValPair(c: var EnvParser, kind: EnvEventKind): EnvEvent =
-  if c.tok.kind == tkSymbol:
+  if c.tok.kind == EnvTokenKind.Symbol:
     result.kind = kind
     result.key = c.tok.literal
     result.value = ""
     rawGetTok(c, c.tok)
-    if c.tok.kind == tkEquals:
+    if c.tok.kind == EnvTokenKind.Equals:
       rawGetTok(c, c.tok)
-      if c.tok.kind == tkSymbol:
+      if c.tok.kind == EnvTokenKind.Symbol:
         result.value = c.tok.literal
       else:
         reset result
-        result.kind = envError
+        result.kind = EnvEventKind.Error
         result.msg = errorStr(c, "symbol expected, but found: " & c.tok.literal)
       rawGetTok(c, c.tok)
   else:
-    result.kind = envError
+    result.kind = EnvEventKind.Error
     result.msg = errorStr(c, "symbol expected, but found: " & c.tok.literal)
     rawGetTok(c, c.tok)
 
 proc next*(c: var EnvParser): EnvEvent =
   ## retrieves the first/next event. This controls the parser.
   case c.tok.kind
-  of tkEof:
-    result.kind = envEof
-  of tkSymbol:
-    result = getKeyValPair(c, envKeyValuePair)
-  of tkInvalid, tkEquals:
-    result.kind = envError
+  of EnvTokenKind.Eof:
+    result.kind = EnvEventKind.Eof
+  of EnvTokenKind.Symbol:
+    result = getKeyValPair(c, EnvEventKind.KeyValuePair)
+  of EnvTokenKind.Invalid, EnvTokenKind.Equals:
+    result.kind = EnvEventKind.Error
     result.msg = errorStr(c, "invalid token: " & c.tok.literal)
     rawGetTok(c, c.tok)

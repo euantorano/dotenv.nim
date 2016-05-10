@@ -5,3 +5,11 @@ suite "dotenv tests":
     let env = initDotEnv()
     env.load()
     check getEnv("hello") == "world"
+
+  test "load simple environment variables from a string":
+    loadEnvFromString("""hello = world
+    foo = bar
+    """)
+    check getEnv("hello") == "world"
+    check getEnv("foo") == "bar"
+

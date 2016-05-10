@@ -78,6 +78,19 @@ env.overload()
 # You can now access the variables using os.getEnv()
 ```
 
+### Loading from a string
+
+You can also load environment variables directly from a string without instantiating a `DotEnv` instance:
+
+```nim
+import dotenv, os
+
+loadEnvFromString("""hello = world
+    foo = bar
+    """)
+assert getEnv("foo") == "bar"
+```
+
 ## Planned features
 
 * Allow the usage of other environment variables inside variable values.

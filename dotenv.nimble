@@ -1,6 +1,6 @@
 [Package]
 name          = "dotenv"
-version       = "1.0.2"
+version       = "1.0.3"
 author        = "Euan T"
 description   = "Loads environment variables from `.env`."
 license       = "BSD-3-Clause"

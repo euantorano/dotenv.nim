@@ -54,6 +54,7 @@ iterator loadFromFile*(filePath: string): EnvVar {.tags: [ReadDirEffect, ReadIOE
 
   var parser: EnvParser
   envparser.open(parser, f, filePath)
+  defer: close(parser)
   while true:
     var e = parser.next()
     case e.kind
@@ -63,7 +64,6 @@ iterator loadFromFile*(filePath: string): EnvVar {.tags: [ReadDirEffect, ReadIOE
       yield (name: e.key, value: e.value)
     of EnvEventKind.Error:
       raise newException(DotEnvParseError, e.msg)
-  close(parser)
 
 iterator loadFromString*(content: string): EnvVar {.tags: [ReadDirEffect, ReadIOEffect, RootEffect], raises: [DotEnvReadError, DotEnvParseError, Exception].} =
   ## Load the environment variables from a given `content` string.
@@ -74,6 +74,7 @@ iterator loadFromString*(content: string): EnvVar {.tags: [ReadDirEffect, ReadIO
 
   var parser: EnvParser
   envparser.open(parser, f, "")
+  defer: close(parser)
   while true:
     var e = parser.next()
     case e.kind

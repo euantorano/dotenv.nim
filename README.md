@@ -39,9 +39,8 @@ It will span multiple lines.
 You can also add comments, using the `#` symbol:
 
 ```
-
 # Comments can fill a whole line
-DB_NAME=test # Or they can following an assignment
+DB_NAME=test # Or they can follow an assignment
 ```
 
 ### Loading the `.env` file

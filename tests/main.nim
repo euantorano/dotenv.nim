@@ -2,9 +2,13 @@ import dotenv, unittest, os
 
 suite "dotenv tests":
   test "load simple environment variables from .env":
-    let env = initDotEnv()
+    let env = initDotEnv("./", ".env.example")
     env.load()
-    check getEnv("hello") == "world"
+    check getEnv("ANOTHER_SIMPLE_VAL") == "test"
+    check getEnv("MULTILINE_VAL") == """This value
+
+will span multiple lines, just like in Nim
+"""
 
   test "load simple environment variables from a string":
     loadEnvFromString("""hello = world

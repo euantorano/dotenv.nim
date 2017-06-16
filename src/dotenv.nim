@@ -36,7 +36,7 @@ proc initDotEnv*(directory: string, fileName: string = ".env"): DotEnv {.raises:
 
   result = DotEnv(filePath: path)
 
-proc initDotEnv*(): DotEnv {.raises: [DotEnvPathError, ref OSError], tags: [ReadDirEffect].} =
+proc initDotEnv*(): DotEnv {.raises: [DotEnvPathError, ref OSError, ref AssertionError], tags: [ReadDirEffect].} =
   ## Initialise a `DotEnv` instance using the current working directory.
   let path = joinpath(getCurrentDir(), ".env")
   if not existsFile(path):

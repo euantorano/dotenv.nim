@@ -1,11 +1,10 @@
 ## Loads environment variables from `.env`.
 
-import os, streams, private/envparser
+import os, streams, dotenv/private/envparser
 
 type
   EnvVar = tuple[name: string, value: string]
-  DotEnv* = ref DotEnvObj
-  DotEnvObj* = object
+  DotEnv* = object
     ## The main dotenv object, stores a reference to the `.env` file path.
     filePath: string
   DotEnvPathError* = object of Exception
@@ -23,11 +22,11 @@ proc initDotEnv*(directory: string, fileName: string = ".env"): DotEnv {.raises:
 
   # Check if the `directory` path is actually a file path. If so, use it.
   let fileInfo = getFileInfo(directory)
-  if fileInfo.kind == pcFile or fileInfo.kind == pcLinkToFile:
+  if fileInfo.kind in {pcFile, pcLinkToFile}:
     return DotEnv(filePath: directory)
 
   var file = fileName
-  if isNil(file) or file == "":
+  if len(file) < 1:
     file = ".env"
 
   let path = joinPath(directory, file)
@@ -35,56 +34,50 @@ proc initDotEnv*(directory: string, fileName: string = ".env"): DotEnv {.raises:
   if not existsFile(path):
     raise newException(DotEnvPathError, "Path '" & path & "' does not exist")
 
-  return DotEnv(filePath: path)
+  result = DotEnv(filePath: path)
 
 proc initDotEnv*(): DotEnv {.raises: [DotEnvPathError, ref OSError], tags: [ReadDirEffect].} =
-  ## Initialise a `DotEnv` instance using the current working dorectory.
+  ## Initialise a `DotEnv` instance using the current working directory.
   let path = joinpath(getCurrentDir(), ".env")
   if not existsFile(path):
     raise newException(DotEnvPathError, "Path '" & path & "' does not exist")
 
-  return DotEnv(filePath: path)
+  result = DotEnv(filePath: path)
 
-iterator loadFromFile*(filePath: string): EnvVar {.tags: [ReadDirEffect, ReadIOEffect, RootEffect], raises: [DotEnvReadError, DotEnvParseError, Exception].} =
+iterator loadFromStream(s: Stream, filePath: string = ""): EnvVar {.raises: [DotEnvParseError, ref ValueError, Exception].} =
+  ## Read all of the environment variables from the given stream.
+  var parser: EnvParser
+  envparser.open(parser, s, filePath)
+  defer: close(parser)
+  while true:
+    var e = parser.next()
+    case e.kind
+    of EnvEventKind.Eof:
+      break
+    of EnvEventKind.KeyValuePair:
+      yield (name: e.key, value: e.value)
+    of EnvEventKind.Error:
+      raise newException(DotEnvParseError, e.msg)
+
+iterator loadFromFile(filePath: string): EnvVar {.tags: [ReadDirEffect, ReadIOEffect, RootEffect], raises: [DotEnvReadError, DotEnvParseError, ref ValueError, Exception].} =
   ## Load the environment variables from a file at the given `filePath`.
   let f = newFileStream(filePath, fmRead)
 
   if isNil(f):
     raise newException(DotEnvReadError, "Failed to read env file")
 
-  var parser: EnvParser
-  envparser.open(parser, f, filePath)
-  defer: close(parser)
-  while true:
-    var e = parser.next()
-    case e.kind
-    of EnvEventKind.Eof:
-      break
-    of EnvEventKind.KeyValuePair:
-      yield (name: e.key, value: e.value)
-    of EnvEventKind.Error:
-      raise newException(DotEnvParseError, e.msg)
+  for entry in loadFromStream(f, filePath):
+    yield entry
 
-iterator loadFromString*(content: string): EnvVar {.tags: [ReadDirEffect, ReadIOEffect, RootEffect], raises: [DotEnvReadError, DotEnvParseError, Exception].} =
+iterator loadFromString(content: string): EnvVar {.tags: [ReadDirEffect, ReadIOEffect, RootEffect], raises: [DotEnvReadError, DotEnvParseError, ref ValueError, Exception].} =
   ## Load the environment variables from a given `content` string.
-  let f = newStringStream(content)
+  let ss = newStringStream(content)
 
-  if isNil(f):
+  if isNil(ss):
     raise newException(DotEnvReadError, "Failed to read env file")
 
-  var parser: EnvParser
-  envparser.open(parser, f, "")
-  defer: close(parser)
-  while true:
-    var e = parser.next()
-    case e.kind
-    of EnvEventKind.Eof:
-      break
-    of EnvEventKind.KeyValuePair:
-      yield (name: e.key, value: e.value)
-    of EnvEventKind.Error:
-      raise newException(DotEnvParseError, e.msg)
-  close(parser)
+  for entry in loadFromStream(ss):
+    yield entry
 
 proc load*(de: DotEnv) {.tags: [ReadDirEffect, ReadIOEffect, RootEffect, ReadEnvEffect, WriteEnvEffect], raises: [OSError, Exception].} =
   ## Load the environment variables from the .env file. Any existing environment variables will not be overwritten.

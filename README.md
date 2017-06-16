@@ -12,6 +12,16 @@ Storing [configuration in the environment](http://12factor.net/config) is one of
 nimble install dotenv
 ```
 
+Or add the following to your `.nimble` file:
+
+```
+# Dependencies
+
+requires "dotenv >= 1.1.0"
+```
+
+## [Documentation](https://htmlpreview.github.io/?https://github.com/euantorano/dotenv.nim/blob/master/docs/dotenv.html)
+
 ## Usage
 
 ### Create a `.env` file

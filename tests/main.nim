@@ -1,7 +1,7 @@
 import dotenv, unittest, os
 
 suite "dotenv tests":
-  test "load simple environment variables from .env":
+  test "load simple environment variables from .env with full directory and file name":
     let env = initDotEnv("./", ".env.example")
     env.load()
     check getEnv("ANOTHER_SIMPLE_VAL") == "test"
@@ -18,18 +18,12 @@ will span multiple lines, just like in Nim
     check getEnv("foo") == "bar"
 
   test "test load invalid .env file":
-    try:
+    expect DotEnvParseError:
       loadEnvFromString(r"inv~lid=world")
-      check false
-    except DotEnvParseError:
-      check true
 
   test "test load invalid .env file 2":
-    try:
+    expect DotEnvParseError:
       loadEnvFromString(r"invalid!=world")
-      check false
-    except DotEnvParseError:
-      check true
 
   test "test load .env file with exports":
     loadEnvFromString(r"""

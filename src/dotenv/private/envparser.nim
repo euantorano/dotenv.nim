@@ -1,4 +1,5 @@
 ## A parser to parse simple env files.
+##
 ## Most of this is stolen from `parsecfg`, with support for sections and `:` assignment removed.
 
 import hashes, strutils, lexbase, streams

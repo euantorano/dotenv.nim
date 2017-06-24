@@ -1,4 +1,4 @@
-# dotenv.nim ![Build Status](https://api.travis-ci.org/euantorano/dotenv.nim.svg)
+# dotenv.nim ![Build Status](https://api.travis-ci.org/euantorano/dotenv.nim.svg) [![CircleCI](https://circleci.com/gh/euantorano/dotenv.nim/tree/master.svg?style=svg)](https://circleci.com/gh/euantorano/dotenv.nim/tree/master)
 
 [dotenv](https://github.com/bkeepers/dotenv) implementation for Nim. Loads environment variables from `.env`
 

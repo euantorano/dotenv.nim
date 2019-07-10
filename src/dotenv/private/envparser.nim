@@ -255,7 +255,7 @@ proc ignoreMsg*(c: EnvParser, e: EnvEvent): string =
 
 proc getKeyValPair(c: var EnvParser, kind: EnvEventKind): EnvEvent =
   if c.tok.kind == EnvTokenKind.Symbol:
-    result.kind = kind
+    result = EnvEvent(kind: kind)
     result.key = c.tok.literal
     result.value = ""
     rawGetTok(c, c.tok)
@@ -270,16 +270,14 @@ proc getKeyValPair(c: var EnvParser, kind: EnvEventKind): EnvEvent =
       if c.tok.kind == EnvTokenKind.Symbol:
         result.value = c.tok.literal
       else:
-        reset result
-        result.kind = EnvEventKind.Error
+        result = EnvEvent(kind: EnvEventKind.Error)
         result.msg = errorStr(c, "symbol expected, but found: " & c.tok.literal)
       rawGetTok(c, c.tok)
     else:
-      reset result
-      result.kind = EnvEventKind.Error
+      result = EnvEvent(kind: EnvEventKind.Error)
       result.msg = errorStr(c, "symbol expected, but found: " & c.tok.literal)
   else:
-    result.kind = EnvEventKind.Error
+    result = EnvEvent(kind: EnvEventKind.Error)
     result.msg = errorStr(c, "symbol expected, but found: " & c.tok.literal)
     rawGetTok(c, c.tok)
 
@@ -287,10 +285,10 @@ proc next*(c: var EnvParser): EnvEvent =
   ## retrieves the first/next event. This controls the parser.
   case c.tok.kind
   of EnvTokenKind.Eof:
-    result.kind = EnvEventKind.Eof
+    result = EnvEvent(kind: EnvEventKind.Eof)
   of EnvTokenKind.Symbol:
     result = getKeyValPair(c, EnvEventKind.KeyValuePair)
   of EnvTokenKind.Invalid, EnvTokenKind.Equals:
-    result.kind = EnvEventKind.Error
+    result = EnvEvent(kind: EnvEventKind.Error)
     result.msg = errorStr(c, "invalid token: " & c.tok.literal)
     rawGetTok(c, c.tok)

@@ -1,32 +1,47 @@
-import dotenv, unittest, os
+import dotenv, std/unittest, std/streams, std/os
 
 suite "dotenv tests":
-  test "load simple environment variables from .env with full directory and file name":
-    let env = initDotEnv("./", ".env.example")
-    env.load()
-    check getEnv("ANOTHER_SIMPLE_VAL") == "test"
-    check getEnv("MULTILINE_VAL") == """This value
-
-will span multiple lines, just like in Nim
-"""
-
-  test "load simple environment variables from a string":
-    loadEnvFromString("""hello = world
-    foo = bar
-    """)
+  test "simple unquoted":
+    load(newStringStream("""hello=world
+foo=bar
+    """))
     check getEnv("hello") == "world"
     check getEnv("foo") == "bar"
 
-  test "test load invalid .env file":
-    expect DotEnvParseError:
-      loadEnvFromString(r"inv~lid=world")
+  test "simple quoted":
+    load(newStringStream("""hello=world
+foo=\"bar\"
+    """))
+    check getEnv("hello") == "world"
+    check getEnv("foo") == "bar"
 
-  test "test load invalid .env file 2":
-    expect DotEnvParseError:
-      loadEnvFromString(r"invalid!=world")
+  test "load does not overwrite":
+    putEnv("overwrite_me", "0")
+    load(newStringStream("overwrite_me=1"))
 
-  test "test load .env file with exports":
-    loadEnvFromString(r"""
-    export exportedHello=world
-    """)
-    check getEnv("exportedHello") == "world"
+    check getEnv("overwrite_me") == "0"
+
+  test "overload does overwrite":
+    putEnv("overwrite_me", "0")
+    overload(newStringStream("overwrite_me=1"))
+
+    check getEnv("overwrite_me") == "1"
+
+  test "unqouted directory path":
+    load(newStringStream("""hello=world
+FS_ROOT=/home/ajusa/Documents
+    """))
+
+    check getEnv("FS_ROOT") == "/home/ajusa/Documents"
+
+  test "comments after quoted value":
+    load(newStringStream("""foo=\"bar\" # this is a comment"""))
+    check getEnv("foo") == "bar"
+
+  test "comment line":
+    load(newStringStream("""hello=world
+# this is a comment
+foo=\"bar\"
+"""))
+    check getEnv("hello") == "world"
+    check getEnv("foo") == "bar"

@@ -2,20 +2,17 @@ import dotenv, std/unittest, std/streams, std/os
 
 suite "dotenv tests":
   test "simple unquoted":
-    load(newStringStream("""hello=world
-foo=bar
+    load(newStringStream("""hello1=world
+foo1=bar
     """))
 
-    check getEnv("hello") == "world"
-    check getEnv("foo") == "bar"
+    check getEnv("hello1") == "world"
+    check getEnv("foo1") == "bar"
 
   test "simple quoted":
-    load(newStringStream("""hello=world
-foo=\"bar\"
-    """))
+    load(newStringStream("foo2=\"bar\""))
 
-    check getEnv("hello") == "world"
-    check getEnv("foo") == "bar"
+    check getEnv("foo2") == "bar"
 
   test "load does not overwrite":
     putEnv("overwrite_me", "0")
@@ -30,25 +27,23 @@ foo=\"bar\"
     check getEnv("overwrite_me") == "1"
 
   test "unqouted directory path":
-    load(newStringStream("""hello=world
-FS_ROOT=/home/ajusa/Documents
-    """))
+    load(newStringStream("FS_ROOT3=/home/ajusa/Documents"))
 
-    check getEnv("FS_ROOT") == "/home/ajusa/Documents"
+    check getEnv("FS_ROOT3") == "/home/ajusa/Documents"
 
   test "comments after quoted value":
-    load(newStringStream("""foo=\"bar\" # this is a comment"""))
+    load(newStringStream("""foo4="bar" # this is a comment"""))
 
-    check getEnv("foo") == "bar"
+    check getEnv("foo4") == "bar"
 
   test "comment line":
-    load(newStringStream("""hello=world
+    load(newStringStream("""hello5=world
 # this is a comment
-foo=\"bar\"
+foo5="bar"
 """))
 
-    check getEnv("hello") == "world"
-    check getEnv("foo") == "bar"
+    check getEnv("hello5") == "world"
+    check getEnv("foo5") == "bar"
 
   test "load from file":
     # NOTE: This expects that the tests are ran from the root, using `nimble test`    
@@ -60,13 +55,13 @@ foo=\"bar\"
 
   test "syntax error":
     expect(ParseError):
-      load(newStringStream("""hello=world
+      load(newStringStream("""hello6=world
 $$$"""))
 
   test "export keyword":
-    var str = """export hello=world
-export foo=\"bar\"
-export multiline="""
+    var str = """export hello7=world
+export foo7="bar"
+export multiline7="""
 
     str.add('"')
     str.add('"')
@@ -81,6 +76,25 @@ is a multiline""")
 
     load(newStringStream(str))
 
-    check getEnv("hello") == "world"
-    check getEnv("foo") == "bar"
-    check getEnv("multiline") == "this\nis a multiline"
+    check getEnv("hello7") == "world"
+    check getEnv("foo7") == "bar"
+    check getEnv("multiline7") == "this\nis a multiline"
+
+  test "variable substitution":
+    load(newStringStream("""foo8=bar
+baz8=foo ${foo8} $foo8
+    """))
+
+    check getEnv("baz8") == "foo bar bar"
+
+  test "variable substitution without set variable should insert empty":
+    overload(newStringStream("""foo9=bar
+baz9=foo ${foo9} ${bar}
+    """))
+
+    check getEnv("baz9") == "foo bar "
+
+  test "variable substitution with environment variable":
+    load(newStringStream("dir10=${HOME}/foo"))
+
+    check getEnv("dir10") == getEnv("HOME") & "/foo"

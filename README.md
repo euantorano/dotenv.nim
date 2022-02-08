@@ -51,6 +51,17 @@ You can also add comments, using the `#` symbol:
 DB_NAME=test # Or they can follow an assignment
 ```
 
+Variable values can reference other variables - either from the same `.env` file, or from the existing environment variables:
+
+```
+CONFIG_DIR=${HOME}/.config
+CONFIG_FILE=${CONFIG_DIR}/config.json
+```
+
+* Variables are referenced either using `${VARIABLE}` or as simply `$VARIABLE`.
+* Variables do not need to be defined before usage.
+* Unknown variables are replaced with empty strings.
+
 ### Loading the `.env` file
 
 You can load the `.env` file from the current working directory as follows:

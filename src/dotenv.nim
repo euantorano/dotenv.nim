@@ -63,7 +63,9 @@ proc processEnvFile(stream: Stream, overwrite: bool): void =
 
   for k, v in variables:
     if overwrite or not existsEnv(k):
-      putEnv(k, v)
+      let value = `%`(v, variables, {useEnvironment, useEmpty})
+
+      putEnv(k, value)
 
 proc load*(stream: Stream): void =
   ## Load environment variables from the given stream. Existing environment variables will not be overwritten.
@@ -125,6 +127,7 @@ when isMainModule:
 # comment!
 HELLO
 FOO=BAR
+BAZ=FOO ${FOO} ${BAR}
 
 MEANING_OF_LIFE="42"
 MULTI="""
@@ -149,6 +152,7 @@ LINES""")
 
   echo "HELLO = '", getEnv("HELLO"), "'"
   echo "FOO = '", getEnv("FOO"), "'"
+  echo "BAZ = '", getEnv("BAZ"), "'"
   echo "MEANING_OF_LIFE = '", getEnv("MEANING_OF_LIFE"), "'"
   echo "MULTI = '", getEnv("MULTI"), "'"
   echo "trailing = '", getEnv("trailing"), "'"

@@ -1,4 +1,4 @@
-# dotenv.nim [![CircleCI](https://circleci.com/gh/euantorano/dotenv.nim/tree/master.svg?style=svg)](https://circleci.com/gh/euantorano/dotenv.nim/tree/master)
+# dotenv.nim
 
 [dotenv](https://github.com/bkeepers/dotenv) implementation for Nim. Loads environment variables from `.env`
 
@@ -17,10 +17,8 @@ Or add the following to your `.nimble` file:
 ```
 # Dependencies
 
-requires "dotenv >= 1.1.0"
+requires "dotenv >= 2.0.0"
 ```
-
-## [Documentation](https://htmlpreview.github.io/?https://github.com/euantorano/dotenv.nim/blob/master/docs/dotenv.html)
 
 ## Usage
 
@@ -60,10 +58,7 @@ You can load the `.env` file from the current working directory as follows:
 ```nim
 import dotenv
 
-let env = initDotEnv()
-env.load()
-
-# You can now access the variables using os.getEnv()
+load()
 ```
 
 Or, you can specify the path to the directory and/or file:
@@ -71,8 +66,7 @@ Or, you can specify the path to the directory and/or file:
 ```nim
 import dotenv
 
-let env = initDotEnv("/some/directory/path", "custom_file_name.env")
-env.load()
+load("/some/directory/path", "custom_file_name.env")
 
 # You can now access the variables using os.getEnv()
 ```
@@ -82,26 +76,21 @@ By default, `dotenv` does not overwrite existing environment variables, though t
 ```nim
 import dotenv
 
-let env = initDotEnv()
-env.overload()
+overload()
 
 # You can now access the variables using os.getEnv()
 ```
 
 ### Loading from a string
 
-You can also load environment variables directly from a string without instantiating a `DotEnv` instance:
+You can also load environment variables directly from a string using `std/streams`:
 
 ```nim
-import dotenv, os
+import dotenv, std/streams
 
-loadEnvFromString("""hello = world
-    foo = bar
-    """)
+load(newStringStream("""hello = world
+foo = bar
+"""))
+
 assert getEnv("foo") == "bar"
 ```
-
-## Planned features
-
-* Allow the usage of other environment variables inside variable values.
-* Add validation of variable values, specifying variables have to be integer, or boolean, or a value from a predefined set.

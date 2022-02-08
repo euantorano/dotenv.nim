@@ -1,9 +1,9 @@
 # Package
 
-version       = "1.1.1"
-author        = "Euan T"
+version       = "2.0.0"
+author        = "Euan Torano"
 description   = "dotenv implementation for Nim. Loads environment variables from `.env`"
-license       = "BSD3"
+license       = "BSD-3-Clause"
 
 srcDir = "src"
 

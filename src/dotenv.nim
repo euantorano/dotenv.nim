@@ -1,102 +1,164 @@
 ## Loads environment variables from `.env`.
 
-import os, streams, dotenv/private/envparser
+import std/streams, std/strtabs, std/strscans, std/os, std/strutils
 
 type
-  EnvVar = tuple[name: string, value: string]
-  DotEnv* = object
-    ## The main dotenv object, stores a reference to the `.env` file path.
-    filePath: string
-  DotEnvPathError* = object of Exception
-    ## Error thrown when the given file or directory path doesn't exist.
-  DotEnvReadError* = object of Exception
-    ## Error thrown when reading from the `.env` file fails.
-  DotEnvParseError* = object of Exception
-    ## Error thrown if a parse error occurs while reading the `.env` file.
+  ParseError* = object of CatchableError
+    ## Exception thrown if parsing fails.
 
-proc initDotEnv*(directory: string, fileName: string = ".env"): DotEnv {.raises: [DotEnvPathError, ref OSError], tags: [ReadDirEffect] .} =
-  ## Initialise a `DotEnv` instance using the specified `.env` file.
-  ## By default, it will look for a file `.env` in the given path, but this can be overriden.
-  if not existsDir(directory):
-    raise newException(DotEnvPathError, "Directory '" & directory & "' does not exist")
+proc processEnvFile(stream: Stream, overwrite: bool): void =
+  var variables = newStringTable()
+
+  var 
+    lineNumber: int = 1
+    line: string = ""
+    inMultiLine: bool = false
+    multilineKey: string = ""
+    multilineValueBuffer: string = ""
+  while stream.readLine(line):
+    if len(line) > 0 and line[0] == '#':
+      # comment, ignored
+      continue
+
+    if inMultiLine:
+      var value: string
+      if line == "\"\"\"":
+        inMultiLine = false
+        variables[multilineKey] = multilineValueBuffer
+      elif scanf(line, "$*\"\"\"", value):
+        multilineValueBuffer.add('\n')
+        multilineValueBuffer.add(value)
+        inMultiLine = false
+        variables[multilineKey] = multilineValueBuffer
+      else:
+        multilineValueBuffer.add('\n')
+        multilineValueBuffer.add(line)
+    else:
+      if isEmptyOrWhitespace(line):
+        continue
+
+      var
+        key: string
+        value: string
+      if scanf(line, "$w$.", key) or scanf(line, "export $w$.", key):
+        # key, no value
+        discard
+      elif scanf(line, "$w=\"\"\"$*", key, value) or scanf(line, "export $w=\"\"\"$*", key, value):
+        # key, multiline string start
+        inMultiLine = true
+        multilineKey = key
+        multilineValueBuffer = value
+        continue
+      elif scanf(line, "$w=\"$*\"", key, value) or scanf(line, "export $w=\"$*\"", key, value):
+        # key, quoted value
+        discard
+      elif scanf(line, "$w=$*", key, value) or scanf(line, "export $w=$*", key, value):
+        # key, unqouted value
+        discard
+      else:
+        raise newException(ParseError, "Parse error, line: " & $lineNumber & "; line: " & line)
+
+      variables[key] = value
+      inc(lineNumber)
+
+  for k, v in variables:
+    if overwrite or not existsEnv(k):
+      let value = `%`(v, variables, {useEnvironment, useEmpty})
+
+      putEnv(k, value)
+
+proc load*(stream: Stream): void =
+  ## Load environment variables from the given stream. Existing environment variables will not be overwritten.
+  ## 
+  ## The stream should contain a correctly formatted `.env` file.
+  processEnvFile(stream, false)
+
+proc overload*(stream: Stream): void =
+  ## Load environment variables from the given stream. Existing environment variables will be overwritten.
+  ## 
+  ## The stream should contain a correctly formatted `.env` file.
+  processEnvFile(stream, true)
+
+proc loadFromFile(directory: string, filename: string, overwrite: bool, bufferSize: int): void =
+  let dir = if len(directory) == 0:
+    getCurrentDir()
+  else:
+    directory
+
+  if not dirExists(dir):
+    raise newException(IOError, "Directory does not exist: " & dir)
 
   # Check if the `directory` path is actually a file path. If so, use it.
-  let fileInfo = getFileInfo(directory)
-  if fileInfo.kind in {pcFile, pcLinkToFile}:
-    return DotEnv(filePath: directory)
+  let fileInfo = getFileInfo(dir)
+  let filePath = if fileInfo.kind in {pcFile, pcLinkToFile}:
+    dir
+  else:
+    var file = fileName
+    if len(file) < 1:
+      file = ".env"
 
-  var file = fileName
-  if len(file) < 1:
-    file = ".env"
+    let path = joinPath(dir, filename)
 
-  let path = joinPath(directory, file)
+    if not fileExists(path):
+      raise newException(IOError, "Path does not exist: " & path)
 
-  if not existsFile(path):
-    raise newException(DotEnvPathError, "Path '" & path & "' does not exist")
+    path
 
-  result = DotEnv(filePath: path)
+  var strm = newFileStream(filePath, fmRead, bufferSize)
 
-proc initDotEnv*(): DotEnv {.raises: [DotEnvPathError, ref OSError, ref AssertionError], tags: [ReadDirEffect].} =
-  ## Initialise a `DotEnv` instance using the current working directory.
-  let path = joinpath(getCurrentDir(), ".env")
-  if not existsFile(path):
-    raise newException(DotEnvPathError, "Path '" & path & "' does not exist")
+  if strm == nil:
+    raise newException(IOError, "Failed to open file: " & filePath)
 
-  result = DotEnv(filePath: path)
+  try:
+    processEnvFile(strm, overwrite)
+  finally:
+    strm.close()
 
-iterator loadFromStream(s: Stream, filePath: string = ""): EnvVar {.raises: [DotEnvParseError, ref ValueError, Exception].} =
-  ## Read all of the environment variables from the given stream.
-  var parser: EnvParser
-  envparser.open(parser, s, filePath)
-  defer: close(parser)
-  while true:
-    var e = parser.next()
-    case e.kind
-    of EnvEventKind.Eof:
-      break
-    of EnvEventKind.KeyValuePair:
-      yield (name: e.key, value: e.value)
-    of EnvEventKind.Error:
-      raise newException(DotEnvParseError, e.msg)
+proc load*(directory: string = "", filename: string = ".env", bufferSize: int = 4096): void =
+  ## Load environment variables from the given directory using the given filename. Existing environment variables will not be overwritten.
+  loadFromFile(directory, filename, false, bufferSize)
 
-iterator loadFromFile(filePath: string): EnvVar {.tags: [ReadDirEffect, ReadIOEffect, RootEffect], raises: [DotEnvReadError, DotEnvParseError, ref ValueError, Exception].} =
-  ## Load the environment variables from a file at the given `filePath`.
-  let f = newFileStream(filePath, fmRead)
+proc overload*(directory: string = "", filename: string = ".env", bufferSize: int = 4096): void =
+  ## Load environment variables from the given directory using the given filename. Existing environment variables will be overwritten.
+  loadFromFile(directory, filename, true, bufferSize)
 
-  if isNil(f):
-    raise newException(DotEnvReadError, "Failed to read env file")
+when isMainModule:
+  var str = """
+# comment!
+HELLO
+FOO=BAR
+BAZ=FOO ${FOO} ${BAR}
 
-  for entry in loadFromStream(f, filePath):
-    yield entry
+MEANING_OF_LIFE="42"
+MULTI="""
 
-iterator loadFromString(content: string): EnvVar {.tags: [ReadDirEffect, ReadIOEffect, RootEffect], raises: [DotEnvReadError, DotEnvParseError, ref ValueError, Exception].} =
-  ## Load the environment variables from a given `content` string.
-  let ss = newStringStream(content)
+  str.add('"')
+  str.add('"')
+  str.add('"')
 
-  if isNil(ss):
-    raise newException(DotEnvReadError, "Failed to read env file")
+  str.add("""
+I
+SPAN
+SEVERAL
+LINES""")
 
-  for entry in loadFromStream(ss):
-    yield entry
+  str.add('"')
+  str.add('"')
+  str.add('"')
 
-proc load*(de: DotEnv) {.tags: [ReadDirEffect, ReadIOEffect, RootEffect, ReadEnvEffect, WriteEnvEffect], raises: [OSError, Exception].} =
-  ## Load the environment variables from the .env file. Any existing environment variables will not be overwritten.
-  for envVar in loadFromFile(de.filePath):
-    if not existsEnv(envVar.name):
-      putEnv(envVar.name, envVar.value)
+  str.add("\ntrailing=1")
 
-proc overload*(de: DotEnv) {.tags: [ReadDirEffect, ReadIOEffect, RootEffect, ReadEnvEffect, WriteEnvEffect], raises: [OSError, Exception].} =
-  ## Load the environment variables from the .env file. Any existing environment variables will be overwritten with new values from the file.
-  for envVar in loadFromFile(de.filePath):
-    putEnv(envVar.name, envVar.value)
+  load(newStringStream(str))
 
-proc loadEnvFromString*(content: string) {.tags: [ReadDirEffect, ReadIOEffect, RootEffect, ReadEnvEffect, WriteEnvEffect], raises: [OSError, Exception].} =
-  ## Load the environment variables from the given `content` string. Any existing environment variables will not be overwritten.
-  for envVar in loadFromString(content):
-    if not existsEnv(envVar.name):
-      putEnv(envVar.name, envVar.value)
+  echo "HELLO = '", getEnv("HELLO"), "'"
+  echo "FOO = '", getEnv("FOO"), "'"
+  echo "BAZ = '", getEnv("BAZ"), "'"
+  echo "MEANING_OF_LIFE = '", getEnv("MEANING_OF_LIFE"), "'"
+  echo "MULTI = '", getEnv("MULTI"), "'"
+  echo "trailing = '", getEnv("trailing"), "'"
 
-proc overloadEnvFromString*(content: string) {.tags: [ReadDirEffect, ReadIOEffect, RootEffect, ReadEnvEffect, WriteEnvEffect], raises: [OSError, Exception].} =
-  ## Load the environment variables from the given `content` string. Any existing environment variables will be overwritten with new values from the file.
-  for envVar in loadFromString(content):
-    putEnv(envVar.name, envVar.value)
+  load(filename = ".env.example")
+
+  echo "SIMPLE_VAL = '", getEnv("SIMPLE_VAL"), "'"
+  echo "ANOTHER_SIMPLE_VAL = '", getEnv("ANOTHER_SIMPLE_VAL"), "'"
+  echo "MULTILINE_VAL = '", getEnv("MULTILINE_VAL"), "'"

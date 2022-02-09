@@ -52,9 +52,17 @@ proc processEnvFile(stream: Stream, overwrite: bool): void =
       elif scanf(line, "$w=\"$*\"", key, value) or scanf(line, "export $w=\"$*\"", key, value):
         # key, quoted value
         discard
+      elif scanf(line, "$w='$*'", key, value) or scanf(line, "export $w='$*'", key, value):
+        # key, single quoted value
+        discard
       elif scanf(line, "$w=$*", key, value) or scanf(line, "export $w=$*", key, value):
         # key, unqouted value
-        discard
+        let commentStartIndex = value.find(" #")
+
+        if commentStartIndex > -1:
+          value = value[0..commentStartIndex-1]
+          if len(value) > 0:
+            value = value.strip(false, true)
       else:
         raise newException(ParseError, "Parse error, line: " & $lineNumber & "; line: " & line)
 

@@ -14,6 +14,11 @@ foo1=bar
 
     check getEnv("foo2") == "bar"
 
+  test "simple single quoted":
+    load(newStringStream("singleQuoted='bar'"))
+
+    check getEnv("singleQuoted") == "bar"
+
   test "load does not overwrite":
     putEnv("overwrite_me", "0")
     load(newStringStream("overwrite_me=1"))
@@ -35,6 +40,16 @@ foo1=bar
     load(newStringStream("""foo4="bar" # this is a comment"""))
 
     check getEnv("foo4") == "bar"
+
+  test "comments after unquoted value":
+    load(newStringStream("HOGE=true # true or false"))
+
+    check getEnv("HOGE") == "true"
+
+  test "hash value":
+    load(newStringStream("hashedValue=#test"))
+
+    check getEnv("hashedValue") == "#test"
 
   test "comment line":
     load(newStringStream("""hello5=world

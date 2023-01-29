@@ -75,7 +75,7 @@ load()
 Or, you can specify the path to the directory and/or file:
 
 ```nim
-import dotenv
+import dotenv, std/os
 
 load("/some/directory/path", "custom_file_name.env")
 
@@ -85,7 +85,7 @@ load("/some/directory/path", "custom_file_name.env")
 By default, `dotenv` does not overwrite existing environment variables, though this can be done using `overload` rather than `load`:
 
 ```nim
-import dotenv
+import dotenv, std/os
 
 overload()
 
@@ -97,7 +97,7 @@ overload()
 You can also load environment variables directly from a string using `std/streams`:
 
 ```nim
-import dotenv, std/streams
+import dotenv, std/[streams, os]
 
 load(newStringStream("""hello = world
 foo = bar

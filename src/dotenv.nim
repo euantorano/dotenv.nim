@@ -97,8 +97,14 @@ proc loadFromFile(directory: string, filename: string, overwrite: bool, bufferSi
     raise newException(IOError, "Directory does not exist: " & dir)
 
   # Check if the `directory` path is actually a file path. If so, use it.
-  let fileInfo = getFileInfo(dir)
-  let filePath = if fileInfo.kind in {pcFile, pcLinkToFile}:
+  let
+    isFile =
+      when defined(nimscript):
+        fileExists(dir)
+      else:
+        getFileInfo(dir).kind in {pcFile, pcLinkToFile}
+
+  let filePath = if isFile:
     dir
   else:
     var file = fileName
@@ -112,7 +118,11 @@ proc loadFromFile(directory: string, filename: string, overwrite: bool, bufferSi
 
     path
 
-  var strm = newFileStream(filePath, fmRead, bufferSize)
+  var strm =
+    when defined(nimscript):
+      newStringStream(readFile filePath)
+    else:
+      newFileStream(filePath, fmRead, bufferSize)
 
   if strm == nil:
     raise newException(IOError, "Failed to open file: " & filePath)
